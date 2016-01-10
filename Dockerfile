@@ -59,9 +59,9 @@ RUN composer create-project --no-dev laravel/laravel ci 5.1 \
 	&& cd ci \
 	&& composer require --update-no-dev -o pragmarx/ci
 # configure it
-RUN awk '/App\\Providers\\RouteServiceProvider::class,/ { print; print "PragmaRX\\Ci\\Vendor\\Laravel\\ServiceProvider::class,"; next }1' config/app.php > tmp \
-	&& cat tmp > config/app.php \\
-	&& sed -i "s/'log' => 'single'/'log' => 'syslog'/" config/app.php,
+RUN awk '/App\\Providers\\RouteServiceProvider::class,/ { print; print "PragmaRX\\Ci\\Vendor\\Laravel\\ServiceProvider::class,"; next }1' ci/config/app.php > tmp \
+	&& cat tmp > ci/config/app.php \
+	&& sed -i "s/'log' => 'single'/'log' => 'syslog'/" ci/config/app.php
 # make route available
 RUN sed -i "s/return view('welcome');/return view('pragmarx\/ci::dashboard');/" ci/app/Http/routes.php
 
