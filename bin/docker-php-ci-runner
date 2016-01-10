@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+
+# link config
+ln -s /var/www/config/ci.php /var/www/laravel-ci/ci/config/ci.php 
+
+# run apache
+/usr/local/bin/apache2-foreground
