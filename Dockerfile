@@ -9,14 +9,17 @@ VOLUME ["/var/www/config", "/var/www/repositories"]
 WORKDIR /var/www/laravel-ci
 
 # init extension and requirements
-RUN apt-get update && apt-get install -y zlib1g-dev git wget --no-install-recommends
+RUN apt-get update && apt-get install -y zlib1g-dev git wget vim --no-install-recommends
 
 COPY bin/* /var/www/laravel-ci/bin/
+
 RUN bin/docker-php-pecl-install xdebug \
 	&& docker-php-ext-install zip mbstring \
 	&& echo "xdebug.remote_enable=1"       >> /usr/local/etc/php/conf.d/docker-php-pecl-xdebug.ini \
     && echo "xdebug.remote_port=9000"      >> /usr/local/etc/php/conf.d/docker-php-pecl-xdebug.ini \
-    && echo "xdebug.remote_connect_back=1" >> /usr/local/etc/php/conf.d/docker-php-pecl-xdebug.ini
+    && echo "xdebug.remote_connect_back=1" >> /usr/local/etc/php/conf.d/docker-php-pecl-xdebug.ini \
+# move to accelerate the build part
+    && mv /usr/local/etc/php/conf.d/docker-php-pecl-xdebug.ini /var/www/docker-php-pecl-xdebug.ini
 
 # install composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=bin --filename=composer
@@ -46,16 +49,28 @@ RUN cd bin \
 	&& mv codecept.phar codecept \
 	&& wget https://github.com/Halleck45/PhpMetrics/raw/master/build/phpmetrics.phar \
 	&& mv phpmetrics.phar phpmetrics \
-	&& chmod +x * \
-	&& mv * /usr/local/bin/
+	&& chmod +x *
+
+# make bin files accessible globally
+RUN mv bin/* /usr/local/bin/
 
 # install project
 RUN composer create-project --no-dev laravel/laravel ci 5.1 \
 	&& cd ci \
-	&& composer require --update-no-dev -o pragmarx/ci \
-	&& awk '/App\\Providers\\RouteServiceProvider::class,/ { print; print "PragmaRX\\Ci\\Vendor\\Laravel\\ServiceProvider::class,"; next }1' config/app.php > tmp \
-	&& cat tmp > config/app.php
-RUN sed -i '/return view('welcome');/return view('pragmarx\/ci::dashboard');/' ci/app/Http/routes.php
+	&& composer require --update-no-dev -o pragmarx/ci
+# configure it
+RUN awk '/App\\Providers\\RouteServiceProvider::class,/ { print; print "PragmaRX\\Ci\\Vendor\\Laravel\\ServiceProvider::class,"; next }1' config/app.php > tmp \
+	&& cat tmp > config/app.php \\
+	&& sed -i "s/'log' => 'single'/'log' => 'syslog'/" config/app.php,
+# make route available
+RUN sed -i "s/return view('welcome');/return view('pragmarx\/ci::dashboard');/" ci/app/Http/routes.php
+
+# be ugly and do dirty stuff to make things works ;)
+RUN chmod -R 0777 /var/www/laravel-ci/ci/storage \
+	&& chmod -R 0777 /var/www/laravel-ci/ci/bootstrap/cache
+
+# restore xdebug
+RUN mv /var/www/docker-php-pecl-xdebug.ini /usr/local/etc/php/conf.d/docker-php-pecl-xdebug.ini
 
 # link apache repository and ci tools
 RUN rm -r /var/www/html \

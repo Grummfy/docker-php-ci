@@ -2,7 +2,10 @@
 set -e
 
 # link config
-ln -s /var/www/config/ci.php /var/www/laravel-ci/ci/config/ci.php 
+if [ ! -f /var/www/config/ci.php ];
+then
+	ln -s /var/www/config/ci.php /var/www/laravel-ci/ci/config/ci.php 
+fi
 
 # run apache
 /usr/local/bin/apache2-foreground
